@@ -32,11 +32,13 @@ logging.basicConfig(
 
 class HomeworkBotError(Exception):
     """Базовый класс исключений для бота."""
+
     pass
 
 
 class APIResponseError(HomeworkBotError):
     """Ошибка ответа API."""
+
     pass
 
 
