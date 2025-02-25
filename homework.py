@@ -72,22 +72,25 @@ def send_message(bot, message):
 def get_api_answer(timestamp):
     """Делает запрос к API сервиса Практикум Домашка."""
     params = {'from_date': timestamp}
+    response = None
     try:
         response = requests.get(ENDPOINT, headers=HEADERS, params=params)
-        if response.status_code != 200:
-            raise APIResponseError(
-                f'Ошибка API: {response.status_code}, {response.text}, '
-                f'Параметры запроса: {params}, '
-                f'ENDPOINT: {ENDPOINT}, HEADERS: {HEADERS}'
-            )
-        # Пытаемся распарсить JSON
-        return response.json()
-
     except requests.exceptions.RequestException as error:
         raise APIResponseError(
             f'Ошибка при запросе к API: {error}, параметры запроса: {params}, '
             f'ENDPOINT: {ENDPOINT}, HEADERS: {HEADERS}'
         )
+
+    # Перемещаем проверку кода состояния сюда, вне блока try/except
+    if response.status_code != 200:
+        raise APIResponseError(
+            f'Ошибка API: {response.status_code}, {response.text}, '
+            f'Параметры запроса: {params}, '
+            f'ENDPOINT: {ENDPOINT}, HEADERS: {HEADERS}'
+        )
+
+    # Пытаемся распарсить JSON
+    return response.json()
 
 
 def check_response(response):
@@ -130,6 +133,7 @@ def main():
     bot = telebot.TeleBot(TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_error = None
+    last_message = None
 
     while True:
         try:
@@ -141,7 +145,11 @@ def main():
 
             if homeworks:
                 message = parse_status(homeworks[0])
-                send_message(bot, message)
+
+                # Проверяем, не отправляли ли мы уже такое сообщение
+                if message != last_message:
+                    send_message(bot, message)
+                    last_message = message
             else:
                 logging.debug('Новых статусов нет')
 
@@ -156,11 +164,10 @@ def main():
             time.sleep(RETRY_PERIOD)
 
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s, %(levelname)s, %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-
 if __name__ == '__main__':
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s, %(levelname)s, %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
     main()
