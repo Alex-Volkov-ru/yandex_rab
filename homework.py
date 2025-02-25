@@ -148,8 +148,8 @@ def main():
 
                 # Проверяем, не отправляли ли мы уже такое сообщение
                 if message != last_message:
-                    send_message(bot, message)
-                    last_message = message
+                    if send_message(bot, message):
+                        last_message = message  # Обновляем last_message
             else:
                 logging.debug('Новых статусов нет')
 
