@@ -23,12 +23,6 @@ HOMEWORK_VERDICTS = {
     'rejected': 'Работа проверена: у ревьюера есть замечания.'
 }
 
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s, %(levelname)s, %(message)s',
-    handlers=[logging.StreamHandler()]
-)
-
 
 class HomeworkBotError(Exception):
     """Базовый класс исключений для бота."""
@@ -57,10 +51,11 @@ def check_tokens():
 
 
 def send_message(bot, message):
-    """Отправляет сообщение в Telegram."""
+    """Отправляет сообщение в Telegram. Возвращает True, если успешно."""
     try:
         bot.send_message(TELEGRAM_CHAT_ID, message)
         logging.debug(f'Бот отправил сообщение: {message}')
+        return True
     except apihelper.ApiException as error:
         logging.error(
             f'Ошибка при отправке сообщения в Telegram: '
@@ -71,6 +66,7 @@ def send_message(bot, message):
             f'Ошибка при отправке сообщения в Telegram: '
             f'{error}, сообщение: {message}'
         )
+    return False  # Если сообщение не отправилось
 
 
 def get_api_answer(timestamp):
@@ -81,11 +77,17 @@ def get_api_answer(timestamp):
         if response.status_code != 200:
             raise APIResponseError(
                 f'Ошибка API: {response.status_code}, {response.text}, '
-                f'Параметры запроса: {params}')
-        return response.json()  # Пытаемся распарсить JSON
+                f'Параметры запроса: {params}, '
+                f'ENDPOINT: {ENDPOINT}, HEADERS: {HEADERS}'
+            )
+        # Пытаемся распарсить JSON
+        return response.json()
+
     except requests.exceptions.RequestException as error:
         raise APIResponseError(
-            f'Ошибка при запросе к API: {error}, параметры запроса: {params}')
+            f'Ошибка при запросе к API: {error}, параметры запроса: {params}, '
+            f'ENDPOINT: {ENDPOINT}, HEADERS: {HEADERS}'
+        )
 
 
 def check_response(response):
@@ -122,18 +124,12 @@ def parse_status(homework):
 
 def main():
     """Основная логика работы бота."""
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s, %(levelname)s, %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
     if not check_tokens():
         exit()
 
     bot = telebot.TeleBot(TELEGRAM_TOKEN)
     timestamp = int(time.time())
     last_error = None
-    last_message_id = None  # ID последнего отправленного сообщения об ошибке
 
     while True:
         try:
@@ -152,23 +148,19 @@ def main():
         except HomeworkBotError as error:
             logging.error(f'Сбой в работе программы: {error}')
             if last_error != str(error):
-                # Если ошибка новая, отправляем сообщение
-                if last_message_id:
-                    bot.edit_message_text(
-                        f'Сбой в работе программы: {error}',
-                        chat_id=TELEGRAM_CHAT_ID, message_id=last_message_id)
-                else:
-                    # Отправка сообщения и сохранение его ID
-                    last_message = bot.send_message(
-                        TELEGRAM_CHAT_ID,
-                        f'Сбой в работе программы: {error}')
-                    last_message_id = last_message.message_id
-
-                last_error = str(error)
+                # Отправляем сообщение и проверяем, было ли оно отправлено
+                if send_message(bot, f'Сбой в работе программы: {error}'):
+                    last_error = str(error)
 
         finally:
             time.sleep(RETRY_PERIOD)
 
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s, %(levelname)s, %(message)s',
+    handlers=[logging.StreamHandler()]
+)
 
 if __name__ == '__main__':
     main()
