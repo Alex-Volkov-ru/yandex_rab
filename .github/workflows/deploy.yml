@@ -17,15 +17,22 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           echo "${{ secrets.SERVER_IP }} $(ssh-keyscan ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
 
-      - name: Copy files
+      - name: Build and export Docker image
+        run: |
+          docker build -t telebot-backend .
+          docker save telebot-backend -o telebot-backend.tar
+
+      - name: Copy files to server
         run: |
           scp -o StrictHostKeyChecking=no \
-              Dockerfile homework.py requirements.txt docker-compose.yaml \
+              telebot-backend.tar docker-compose.yaml \
               root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
-      - name: Restart bot
+      - name: Deploy on server
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} \
-            "cd /root/telebotyandex && \
-            docker-compose down && \
-            docker-compose up -d --build"
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          cd /root/telebotyandex
+          docker load -i telebot-backend.tar
+          docker-compose down
+          docker-compose up -d
+          EOF
