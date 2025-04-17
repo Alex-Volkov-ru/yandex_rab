@@ -3,8 +3,6 @@ name: Deploy Bot
 on:
   push:
     branches: [master]
-    paths:
-      - '**'  # Триггерить при любых изменениях (или укажите конкретные файлы)
 
 jobs:
   deploy:
@@ -22,7 +20,7 @@ jobs:
       - name: Copy files
         run: |
           scp -o StrictHostKeyChecking=no \
-              .env Dockerfile homework.py requirements.txt docker-compose.yaml \
+              Dockerfile homework.py requirements.txt docker-compose.yaml \
               root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
       - name: Restart bot
