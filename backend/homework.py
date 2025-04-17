@@ -125,7 +125,7 @@ def handle_status(message):
 
 
 @bot.message_handler(
-    func=lambda message: message.text.lower() == 'проверить статус домашнего задания'
+    func=lambda message: message.text.lower() == 'проверить статус домашнего задания!'
 )
 def handle_button_status(message):
     """Обработчик кнопки проверки статуса."""
@@ -173,7 +173,7 @@ def send_homework_status():
             )
         else:
             message = (
-                "Данные о домашней работе ещё не получены. Попробуйте позже."
+                "Данные о домашней работе ещё не получены. Попробуйте позже!!!"
             )
 
     except HomeworkBotError as error:
