@@ -1,0 +1,4 @@
+services:
+  backend:
+    image: telebot-backend
+    env_file: .env
