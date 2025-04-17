@@ -3,8 +3,9 @@ name: Deploy Bot
 on:
   push:
     branches: [master]
-    paths:
-      - '**'
+    paths:       
+      - 'src/**'      
+      - '*.py' 
 
 jobs:
   deploy:
@@ -21,9 +22,11 @@ jobs:
         run: |
           scp -o StrictHostKeyChecking=no \
               .env Dockerfile homework.py requirements.txt docker-compose.yaml \
-              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
+              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/  # <- IP берётся из secrets
 
       - name: Restart bot
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} \
-            "cd /root/telebotyandex && chmod +x update.sh && ./update.sh"
+            "cd /root/telebotyandex && \
+             docker-compose down && \          # Остановить старые контейнеры
+             docker-compose up -d --build"     # Запустить новые
