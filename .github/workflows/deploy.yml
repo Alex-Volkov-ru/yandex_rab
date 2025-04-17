@@ -1,11 +1,39 @@
-name: Deploy Bot
+name: Build and Deploy
 
 on:
   push:
     branches: [master]
 
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
 jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Log in to the Container registry
+        uses: docker/login-action@v2
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        working-directory: ./backend
+        run: |
+          docker build -t ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }} .
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          echo "IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
+
   deploy:
+    needs: build-and-push
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -17,22 +45,16 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           echo "${{ secrets.SERVER_IP }} $(ssh-keyscan ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
 
-      - name: Build and export Docker image
+      - name: Update docker-compose
         run: |
-          docker build -t telebot-backend .
-          docker save telebot-backend -o telebot-backend.tar
+          sed -i "s|image:.*|image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}|" docker-compose.yaml
+          scp -o StrictHostKeyChecking=no docker-compose.yaml root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
-      - name: Copy files to server
-        run: |
-          scp -o StrictHostKeyChecking=no \
-              telebot-backend.tar docker-compose.yaml \
-              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
-
-      - name: Deploy on server
+      - name: Restart services
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
           cd /root/telebotyandex
-          docker load -i telebot-backend.tar
+          docker-compose pull
           docker-compose down
           docker-compose up -d
           EOF

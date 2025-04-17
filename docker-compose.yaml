@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   bot:
-    build: .
+    image: ghcr.io/alex-volkov-ru/yandex_rab:latest
     container_name: telebot-bot
     restart: always
     env_file: .env
