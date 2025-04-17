@@ -3,9 +3,8 @@ name: Deploy Bot
 on:
   push:
     branches: [master]
-    paths:       
-      - 'src/**'      
-      - '*.py' 
+    paths:
+      - '**'  # Триггерить при любых изменениях (или укажите конкретные файлы)
 
 jobs:
   deploy:
@@ -13,20 +12,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Add SSH Key
-        uses: webfactory/ssh-agent@v0.7.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_KEY }}
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_IP }} $(ssh-keyscan ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
 
       - name: Copy files
         run: |
           scp -o StrictHostKeyChecking=no \
               .env Dockerfile homework.py requirements.txt docker-compose.yaml \
-              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/  # <- IP берётся из secrets
+              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
       - name: Restart bot
         run: |
           ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} \
             "cd /root/telebotyandex && \
-             docker-compose down && \          # Остановить старые контейнеры
-             docker-compose up -d --build"     # Запустить новые
+            docker-compose down && \
+            docker-compose up -d --build"
