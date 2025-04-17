@@ -19,19 +19,19 @@ jobs:
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          echo "${{ secrets.SERVER_IP }} $(ssh-keyscan ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa  # Используем RSA ключ
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SERVER_IP }} $(ssh-keyscan -t rsa ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
 
       - name: Copy files
         run: |
-          scp -o StrictHostKeyChecking=no \
+          scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
               telebot-backend.tar docker-compose.yaml \
               root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
       - name: Deploy on server
         run: |
-          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} << 'EOF'
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@${{ secrets.SERVER_IP }} << 'EOF'
           cd /root/telebotyandex
           docker load -i telebot-backend.tar
           docker-compose down
