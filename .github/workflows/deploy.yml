@@ -10,30 +10,33 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Build Docker image
+      - name: Login to GitHub Container Registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      
+      - name: Build and push Docker image
         working-directory: ./backend
         run: |
-          docker build -t telebot-backend .
-          docker save telebot-backend -o ../telebot-backend.tar
+          docker build -t ghcr.io/alex-volkov-ru/yandex_rab:latest .
+          docker push ghcr.io/alex-volkov-ru/yandex_rab:latest
 
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa  # Используем RSA ключ
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
           echo "${{ secrets.SERVER_IP }} $(ssh-keyscan -t rsa ${{ secrets.SERVER_IP }} 2>/dev/null)" >> ~/.ssh/known_hosts
 
-      - name: Copy files
+      - name: Copy compose file
         run: |
           scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa \
-              telebot-backend.tar docker-compose.yaml \
+              docker-compose.yaml \
               root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
       - name: Deploy on server
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa root@${{ secrets.SERVER_IP }} << 'EOF'
           cd /root/telebotyandex
-          docker load -i telebot-backend.tar
-          docker-compose down
+          docker-compose down --remove-orphans
+          docker-compose pull
           docker-compose up -d
           EOF
