@@ -1,4 +1,10 @@
+version: '3.8'
+
 services:
-  backend:
-    image: telebot-backend
+  bot:
+    build: .
+    container_name: telebot-bot
+    restart: always
     env_file: .env
+    volumes:
+      - ./logs:/app/logs
