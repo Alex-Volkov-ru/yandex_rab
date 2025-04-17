@@ -2,15 +2,17 @@ name: Deploy Bot
 
 on:
   push:
-    branches: [main]
+    branches: [master]
+    paths:
+      - '**'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Load SSH Key
+      
+      - name: Add SSH Key
         uses: webfactory/ssh-agent@v0.7.0
         with:
           ssh-private-key: ${{ secrets.SSH_KEY }}
@@ -18,12 +20,10 @@ jobs:
       - name: Copy files
         run: |
           scp -o StrictHostKeyChecking=no \
-              docker-compose.yaml .env update.sh \
-              root@5.35.125.194:/root/telebotyandex/
+              .env Dockerfile homework.py requirements.txt docker-compose.yaml \
+              root@${{ secrets.SERVER_IP }}:/root/telebotyandex/
 
-      - name: Update and restart
+      - name: Restart bot
         run: |
-          ssh -o StrictHostKeyChecking=no root@5.35.125.194 \
-            "cd /root/telebotyandex && \
-             chmod +x update.sh && \
-             ./update.sh"
+          ssh -o StrictHostKeyChecking=no root@${{ secrets.SERVER_IP }} \
+            "cd /root/telebotyandex && chmod +x update.sh && ./update.sh"
